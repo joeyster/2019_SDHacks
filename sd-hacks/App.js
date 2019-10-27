@@ -1,12 +1,5 @@
 import React, { Component } from "react";
-import {
-  Text,
-  Button,
-  View,
-  TouchableOpacity,
-  StyleSheet,
-  TouchableHighlight
-} from "react-native";
+import { Text, View, TouchableOpacity, StyleSheet } from "react-native";
 import * as Permissions from "expo-permissions";
 import { Camera } from "expo-camera";
 import { RNS3 } from "react-native-aws3";
@@ -28,7 +21,8 @@ const s3 = new AWS.S3({
 export default class CameraExample extends React.Component {
   state = {
     hasCameraPermission: null,
-    type: Camera.Constants.Type.back
+    type: Camera.Constants.Type.back,
+    translation: ""
   };
 
   async componentDidMount() {
@@ -65,7 +59,9 @@ export default class CameraExample extends React.Component {
           </Camera>
           {/* Translation Bar */}
           <View styles={styles.bottom_bar}>
-            <View style={styles.translation_bar}></View>
+            <View style={styles.translation_bar}>
+              <Text style={{ fontSize: 25 }}>{this.state.translation}</Text>
+            </View>
           </View>
           {/* Translate Bar */}
           <View styles={styles.bottom_bar}>
@@ -89,42 +85,64 @@ export default class CameraExample extends React.Component {
 
   snap = async () => {
     if (this.camera) {
+      console.log("inside if camera");
       options = { base64: true, skipProcessing: true };
-      // takes picture and convert to base64
       let photo = await this.camera.takePictureAsync(options).then(response => {
-        let obj = { encodedImage: response["base64"] };
-        let base69 = response["base64"];
-        this.upload_file_awsgw(base69); // upload process to AWS Gateway
+        let uri = response["uri"];
+        let resized_photo = this.resize_photo(uri);
+        let base69 = resized_photo["base64"];
       });
     }
   };
 
-  // uploads base64 to AWS Gateway
+  resize_photo = uri => {
+    let resized = ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 50, height: 50 } }],
+      { base64: true }
+    ).then(promised => {
+      // console.log("promised[base64]: ", promised["base64"]);
+      this.upload_file_awsgw(promised["base64"]);
+    });
+  };
+
   upload_file_awsgw = base64 => {
     let data = { encodedImage: base64 };
-    let url = // url is AWS Gateway
-      "https://k9fwxsk4a7.execute-api.us-west-1.amazonaws.com/prod/spicyASL";
-    // POST request: give data to AWS Gateway
+    // console.log(data);
+    let url = new URL(
+      "https://k9fwxsk4a7.execute-api.us-west-1.amazonaws.com/prod/superSpicy"
+    );
     fetch(url, {
+      method: "POST",
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json"
       },
-      method: "POST",
       body: JSON.stringify(data)
     })
       .then(response => {
         return response.json();
       })
       .then(json => {
-        // should get translation from AI through a neural network of sign hands
-        // XGBoost Algorithm: https://docs.aws.amazon.com/sagemaker/latest/dg/xgboost.html
-        console.log("response: ", json);
-        console.log("json[body]: ", typeof json["body"]);
+        console.log("response: \n\t", json);
+        // letter = String.fromCharCode(json[key] + 65)
+        this.setState({ translation: this.state.translation + json });
+      })
+      .catch(err => {
+        console.log(err);
       });
   };
 
-  //deprecated
+  flip_camera = () => {
+    this.setState({
+      type:
+        this.state.type === Camera.Constants.Type.back
+          ? Camera.Constants.Type.front
+          : Camera.Constants.Type.back
+    });
+  };
+
+  // deprecated
   upload_file_s3 = passed_uri => {
     const file = {
       // `uri` can also be a file system path (i.e. file://)
@@ -146,15 +164,6 @@ export default class CameraExample extends React.Component {
       console.log(response);
       if (response.status !== 201)
         throw new Error("Failed to upload image to S3");
-    });
-  };
-
-  flip_camera = () => {
-    this.setState({
-      type:
-        this.state.type === Camera.Constants.Type.back
-          ? Camera.Constants.Type.front
-          : Camera.Constants.Type.back
     });
   };
 }
@@ -201,6 +210,8 @@ const styles = StyleSheet.create({
   },
   translation_bar: {
     borderColor: "black",
+    alignItems: "center",
+    justifyContent: "center",
     borderStyle: "solid",
     borderWidth: 2,
     padding: 30,
