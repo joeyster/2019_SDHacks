@@ -5,7 +5,7 @@ import {
   View,
   TouchableOpacity,
   StyleSheet,
-  TouchableHighlight
+  Image
 } from "react-native";
 import * as Permissions from "expo-permissions";
 import { Camera } from "expo-camera";
@@ -19,11 +19,12 @@ const SECRET = "ASW4tFTV4csHpoFU+lXURBWOrKsuOpr0GlI834q8";
 
 // The name of the bucket that you have created
 const BUCKET_NAME = "spicyaslinput";
-
 const s3 = new AWS.S3({
   accessKeyId: ID,
   secretAccessKey: SECRET
 });
+
+let translation = "";
 
 export default class CameraExample extends React.Component {
   state = {
@@ -59,20 +60,29 @@ export default class CameraExample extends React.Component {
                 style={styles.flip_touch}
                 onPress={this.flip_camera}
               >
-                <Text style={styles.flip_btn}> Flip </Text>
+                <Image
+                  style={{ width: 75, height: 75 }}
+                  source={require("./assets/flip_camera.png")}
+                />
+                {/* <Text style={styles.flip_btn}> Flip </Text> */}
               </TouchableOpacity>
             </View>
           </Camera>
           {/* Translation Bar */}
           <View styles={styles.bottom_bar}>
-            <View style={styles.translation_bar}></View>
+            <View style={styles.translation_bar}>
+              {/* text cannot be more than ~174 characters or view will expand too large */}
+              <Text style={{ fontSize: 25, textAlign: "auto" }}>
+                {this.translation}
+              </Text>
+            </View>
           </View>
           {/* Translate Bar */}
           <View styles={styles.bottom_bar}>
             <TouchableOpacity
               style={styles.translate_btn}
               onPress={() => {
-                this.translate_process();
+                this.snap();
               }}
             >
               <Text style={styles.translate_btn_text}> Translate </Text>
@@ -83,33 +93,44 @@ export default class CameraExample extends React.Component {
     }
   }
 
-  translate_process = () => {
-    this.snap();
-  };
-
   snap = async () => {
     if (this.camera) {
-      console.log("inside if camera");
       options = { base64: true, skipProcessing: true };
-      // options = { quality: 0.1, skipProcessing: true };
+      // takes picture and convert to base64
       let photo = await this.camera.takePictureAsync(options).then(response => {
-        console.log("response: ", response);
         let obj = { encodedImage: response["base64"] };
         let base69 = response["base64"];
-        console.log("base69: ", base69);
-        // cropped = this.crop_focus(uri);
-        this.upload_file_awsgw(base69);
+        this.upload_file_awsgw(base69); // upload process to AWS Gateway
       });
     }
   };
 
-  crop_focus = uri => {
-    let cropped = ImageManipulator.manipulateAsync(uri, [
-      { crop: { originX: 0, originY: 0, width: 100, height: 100 } }
-    ]);
-    return cropped["uri"];
+  // uploads base64 to AWS Gateway
+  upload_file_awsgw = base64 => {
+    let data = { encodedImage: base64 };
+    let url = // url is AWS Gateway
+      "https://k9fwxsk4a7.execute-api.us-west-1.amazonaws.com/prod/spicyASL";
+    // POST request: give data to AWS Gateway
+    fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      method: "POST",
+      body: JSON.stringify(data)
+    })
+      .then(response => {
+        return response.json();
+      })
+      .then(json => {
+        // should get translation from AI through a neural network of sign hands
+        // XGBoost Algorithm: https://docs.aws.amazon.com/sagemaker/latest/dg/xgboost.html
+        console.log("response: ", json);
+        console.log("json[body]: ", typeof json["body"]);
+      });
   };
 
+  //deprecated
   upload_file_s3 = passed_uri => {
     const file = {
       // `uri` can also be a file system path (i.e. file://)
@@ -132,28 +153,6 @@ export default class CameraExample extends React.Component {
       if (response.status !== 201)
         throw new Error("Failed to upload image to S3");
     });
-  };
-
-  upload_file_awsgw = base64 => {
-    let data = { encodedImage: base64 };
-    console.log("data: ", data);
-    let url =
-      "https://k9fwxsk4a7.execute-api.us-west-1.amazonaws.com/prod/spicyASL";
-    fetch(url, {
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json"
-      },
-      method: "POST",
-      body: JSON.stringify(data)
-    })
-      .then(response => {
-        return response.json();
-      })
-      .then(json => {
-        console.log("response: ", json);
-        console.log("json[body]: ", typeof json["body"]);
-      });
   };
 
   flip_camera = () => {
@@ -212,7 +211,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     padding: 30,
     margin: 10,
-    marginBottom: 0
+    marginBottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    flexWrap: "wrap"
   },
   focus: {
     borderColor: "orange",
