@@ -5,7 +5,7 @@ import {
   View,
   TouchableOpacity,
   StyleSheet,
-  Image
+  TouchableHighlight
 } from "react-native";
 import * as Permissions from "expo-permissions";
 import { Camera } from "expo-camera";
@@ -19,12 +19,11 @@ const SECRET = "ASW4tFTV4csHpoFU+lXURBWOrKsuOpr0GlI834q8";
 
 // The name of the bucket that you have created
 const BUCKET_NAME = "spicyaslinput";
+
 const s3 = new AWS.S3({
   accessKeyId: ID,
   secretAccessKey: SECRET
 });
-
-let translation = "";
 
 export default class CameraExample extends React.Component {
   state = {
@@ -60,29 +59,20 @@ export default class CameraExample extends React.Component {
                 style={styles.flip_touch}
                 onPress={this.flip_camera}
               >
-                <Image
-                  style={{ width: 75, height: 75 }}
-                  source={require("./assets/flip_camera.png")}
-                />
-                {/* <Text style={styles.flip_btn}> Flip </Text> */}
+                <Text style={styles.flip_btn}> Flip </Text>
               </TouchableOpacity>
             </View>
           </Camera>
           {/* Translation Bar */}
           <View styles={styles.bottom_bar}>
-            <View style={styles.translation_bar}>
-              {/* text cannot be more than ~174 characters or view will expand too large */}
-              <Text style={{ fontSize: 25, textAlign: "auto" }}>
-                {this.translation}
-              </Text>
-            </View>
+            <View style={styles.translation_bar}></View>
           </View>
           {/* Translate Bar */}
           <View styles={styles.bottom_bar}>
             <TouchableOpacity
               style={styles.translate_btn}
               onPress={() => {
-                this.snap();
+                this.translate_process();
               }}
             >
               <Text style={styles.translate_btn_text}> Translate </Text>
@@ -92,6 +82,10 @@ export default class CameraExample extends React.Component {
       );
     }
   }
+
+  translate_process = () => {
+    this.snap();
+  };
 
   snap = async () => {
     if (this.camera) {
@@ -211,10 +205,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     padding: 30,
     margin: 10,
-    marginBottom: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    flexWrap: "wrap"
+    marginBottom: 0
   },
   focus: {
     borderColor: "orange",
