@@ -1,4 +1,8 @@
 ### 2019_SDHacks
+UCSD MLH Hackathon, 2019. Project : Spicy ASL
+
+https://devpost.com/software/spicy-asl
+
 ## Inspiration
 While we were walking around the RIMAC Arena, we noticed someone who needed a sign language translators. We thought it would be a good idea to build an app to help out people who have rely on those translators to understand what someone is talking about.
 ## What it does
